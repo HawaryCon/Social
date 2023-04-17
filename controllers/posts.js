@@ -1,10 +1,11 @@
 const PostMessage = require("../models/postMessage.js");
 const mongoose = require('mongoose');
-
 const { config } = require('dotenv');
 config();
 const fs = require('fs');
 const ImageKit = require("imagekit")
+const { ObjectId } = require("bson");
+
 const imageKit = new ImageKit({
     publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
     privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
@@ -35,9 +36,8 @@ exports.createPost = async (req, res) => {
             const file = response["url"];
             const newPostMessage = new PostMessage({ title: title, message: message, tags: tags, creator: uid , file : file });
             const savedPost = await newPostMessage.save();
-            console.log("sha8al")
             res.status(201).json(savedPost);
-            //res.json({ status: "success", url: response, message: "Successfully uploaded files" });
+            
         })
     }
     else{
@@ -89,9 +89,9 @@ exports.getPost = async (req, res) => {
     try {
         const id = req.params.id
         const post = await PostMessage.findById(id)
-        res.status(200).json(post);
+        res.status(200).json({post : post , uid : req.userId});
     } catch (error) {
-        res.status(404).json({ message: error.message });
+        res.status(404).json(error );
     }
 }
 exports.likePost = async (req, res) => {
@@ -145,16 +145,47 @@ exports.recentC = async (req,res) => {
 }
 
 exports.updatePost = async (req, res) => {
-    const { id } = req.params;
-    const { title, message, creator, selectedFile, tags } = req.body;
+    try {
+        if (!req.userId) return res.json({ message: 'Unauthenticated!' });
+        const  id  = req.params.id;
+        const tags = req.body.tags;
+        const message = req.body.message;
+        const title = req.body.title;
+        
+        let post = await PostMessage.findById(id);
+        if (!mongoose.Types.ObjectId.isValid(id)) return res.status(404).send(`No post with id: ${id}`);
+        if ((post["creator"]) !== (req.userId)) return res.status(404).send(`Its not your post`);
+        // put condition
+        if(tags) post.tags.push(tags);
+        post.message = message;
+        post.title = title;
+        if (req.file) {
+            var folderName = "images";
+            const data = fs.readFileSync(req.file.path);
+            imageKit.upload({
+                file: data,
+                fileName: req.file.originalname,
+                folder: folderName
+            }, async (err, response) => {
+                if (err) {
+                    return res.status(500).json({
+                        status: "failed",
+                        message: "An error occured during file upload. Please try again."
+                    })
+                }
+                post.file = response["url"];
 
-    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(404).send(`No post with id: ${id}`);
+            })
+        }
+        
+        const result = await PostMessage.findByIdAndUpdate(new ObjectId(id), post , {new : true});
+        res.status(200).json(result);
+        
+}
+catch (error){
+        return res.status(420).json({ message: error})
+}
 
-    const updatedPost = { creator, title, message, tags, selectedFile, _id: id };
-
-    await PostMessage.findByIdAndUpdate(id, updatedPost, { new: true });
-
-    res.json(updatedPost);
 }
 exports.deletePost = async (req, res) => {
     const { id } = req.params;

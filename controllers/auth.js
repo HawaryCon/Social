@@ -19,7 +19,7 @@ exports.signUp = async (req, res) => {
             result.email,
             token
         );
-        //res.status(201).json({ result, token });
+        
         res.status(201).json({message : "User was registered successfully! Please check your email" });
     } catch (error) {
         res.status(409).json({ message: error.message });
