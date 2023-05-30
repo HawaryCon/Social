@@ -1,4 +1,5 @@
 const PostMessage = require("../models/postMessage.js");
+const User = require ("../models/user.js");
 const mongoose = require('mongoose');
 const { config } = require('dotenv');
 config();
@@ -67,16 +68,37 @@ exports.homePage = async (req, res) => {
         res.status(404).json({ message: error.message });
     }
 }
-exports.myProfile = async (req, res) => {
+exports.forYou = async (req, res) => {
     try {
+        let allPosts=[];
+        const id = req.userId;
+        const user = await User.findById(id);
+        
+        for (let i = 0; i < user["following"].length; i++) {
+        let userPosts = await PostMessage.find({ creator: user["following"][i]});
+            allPosts = allPosts.concat(userPosts)   
+        }
+        
+        res.status(200).json(allPosts);
+    } catch (error) {
+        res.status(404).json({ message: error.message });
+    } 
+}
+exports.getProfile = async (req, res) => {
+    try {
+        const userid = req.userId
         const id = req.params.id
+        const user = await User.findById(id) //to check whether other user blocking this user
+        const visitor = await User.findById(req.userId) //possible blocked user
+        if (user["blocked"].includes(userid)) return res.status(404).send("you are blocked");
+        if (visitor["blocked"].includes(id)) return res.status(404).send("unblock user to see his content");
         const post = await PostMessage.find({ creator: id })
-        res.status(200).json(post);
+        res.status(200).json({post : post , uid : id});
     } catch (error) {
         res.status(404).json({ message: error.message });
     }
 }
-exports.getProfile = async (req, res) => {
+exports.myProfile = async (req, res) => {
     try {
         const id = req.userId
         const post = await PostMessage.find({ creator: id })

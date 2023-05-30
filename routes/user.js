@@ -6,4 +6,7 @@ router.post('/signIn', user.signIn);
 
 router.get("/confirm/:confirmationCode", user.verifyUser)
 
+
+
+
 module.exports = router;

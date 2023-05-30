@@ -12,9 +12,17 @@ const userSchema = new mongoose.Schema({
         enum: ['Pending', 'Active'],
         default: 'Pending'
     },
+    following: [String],
+    blocked: [String],
     confirmationCode: {
         type: String,
         unique: true
     },
+    role: {
+        type: String,
+        enum: ["admin","user"],
+        default: 'user'
+    }
+    
 })
 module.exports = mongoose.model("User", userSchema);

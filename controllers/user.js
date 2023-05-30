@@ -12,14 +12,53 @@ const imageKit = new ImageKit({
     urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT,
 })
 
+exports.follow = async (req, res) => {
+    try {
+        const fid = req.params.id
+        if (!req.userId) return res.json({ message: 'Unauthenticated!' });
+        if (!mongoose.Types.ObjectId.isValid(req.userId)) return res.status(404).send(`No profile with id: ${req.userId}`);
+        
+        const user = await User.findById(req.userId);
+        const index = user.following.findIndex((id) => id === (fid))
+        if (index === -1) {
+            user.following.push(fid);
+        } else {
+            user.following = user.following.filter((id) => id !== (fid));
+        }
+        const followedUser = await User.findByIdAndUpdate(new ObjectId(req.userId) , user, { new: true });
+        res.status(200).json(followedUser);
+    } catch (error) {
+        res.status(401).json(error.message)
+    }
+}
+exports.block = async (req, res) => {
+    try {
+        
+        if (!req.userId) return res.json({ message: 'Unauthenticated!' });
+        if (!mongoose.Types.ObjectId.isValid(req.userId)) return res.status(404).send(`No user with id: ${req.userId}`);
+        const bid = req.params.id
+        const user = await User.findById(req.userId);
+        const index = user.blocked.findIndex((id) => id === (bid))
+        if (index === -1) {
+            user.blocked.push(bid);
+        } else {
+            user.blocked = user.blocked.filter((id) => id !== (bid));
+        }
+        const blockedUser = await User.findByIdAndUpdate(new ObjectId(req.userId) , user, { new: true });
+        res.status(200).json(blockedUser);
+    } catch (error) {
+        res.status(401).json(error.message)
+    }
+}
 exports.updateProfile = async (req, res) => {
     try{
     if (!req.userId) return res.json({ message: 'Unauthenticated!' });
+    if (!mongoose.Types.ObjectId.isValid(req.userId)) return res.status(404).send(`No profile with id: ${req.userId}`);
     const id = req.userId;
     const name = req.body.name; 
     const bio = req.body.bio; 
     let profile = await User.findById(id);
-    if (!mongoose.Types.ObjectId.isValid(req.userId)) return res.status(404).send(`No profile with id: ${req.userId}`);
+    
     if ((profile["_id"]) != (req.userId)) return res.status(404).send(`Its not your profile`);
     profile.name = name;
     profile.bio = bio;
@@ -49,4 +88,10 @@ exports.updateProfile = async (req, res) => {
 catch(error) {
     return res.status(420).json(error)
 }
+}
+
+exports.getUser = async (req, res) => {
+    const id = req.body.id;
+    const u = await User.findById(id);
+    res.status(200).json(u);
 }
